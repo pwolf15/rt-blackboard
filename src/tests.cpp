@@ -2,6 +2,4 @@
 
 #include "rtbb.h"
 
-TEST(Basic, RTBB) {
-
-}
+TEST(Basic, RTBB) {}
