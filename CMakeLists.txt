@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(rtbb INTERFACE)
+add_library(rtbb::rtbb ALIAS rtbb)
+target_include_directories(rtbb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(rtbb INTERFACE cxx_std_20)
 
 include(FetchContent)
 set(INSTALL_GTEST OFF)
@@ -19,13 +22,12 @@ enable_testing()
 include(GoogleTest)
 
 add_executable(tests src/tests.cpp)
+target_link_libraries(tests PRIVATE rtbb::rtbb GTest::gmock_main)
+gtest_discover_tests(tests)
 
 if (RTBB_TSAN)
   target_compile_options(tests PRIVATE -fsanitize=thread)
   target_link_options(tests PRIVATE -fsanitize=thread)
 endif()
 
-gtest_discover_tests(tests)
-target_include_directories(tests INTERFACE rtbb)
 target_compile_options(tests PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(tests PRIVATE GTest::gmock_main)
