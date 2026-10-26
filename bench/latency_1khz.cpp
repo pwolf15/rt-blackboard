@@ -149,11 +149,17 @@ int main(int argc, char** argv) {
     }
   };
 
-  std::vector<int64_t> latency;
-  latency.reserve(seconds * 1000 * a.subs);
+  std::vector<std::vector<int64_t>> latency(a.subs);
+  for (auto& v : latency) v.reserve(seconds * 1000);
   for (int i = 0; i < a.subs; ++i) {
-    bb.subscribe(k, [&](const TestMessage& m) {
-      if (m.seq >= kWarmup) latency.push_back(now_ns() - m.t_pub_ns);
+    bb.subscribe(k, [&, i](const TestMessage& m) {
+      if (m.seq >= kWarmup) latency[i].push_back(now_ns() - m.t_pub_ns);
+      // simulate work with busy-wait
+      if (a.work_us > 0) {
+        const int64 until = now_ns() + a.work_us * 1'000LL;
+        while (now_ns() < until) {
+        }
+      }
     });
   }
   std::thread pub(publish);
