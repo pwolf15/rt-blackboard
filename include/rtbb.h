@@ -40,13 +40,8 @@ class Blackboard {
     std::string sname(name);
 
     std::lock_guard<std::mutex> guard(slots_mutex_);
-    auto it = index_.find(sname);
-    // if key not found in index_, add to index_ and create new slot
-    if (it == index_.end()) {
-      index_[sname] = slots_.size();
-      slots_.push_back(std::make_unique<Slot>(std::type_index(typeid(T)), sname));
-      it = index_.find(sname);
-    }
+    auto [it, inserted] = index_.try_empalce(sname, slots_.size());
+    if (inserted) slots_.push_back(std::make_unique<Slot>(std::type_index(typeid(T)), sname));
     if (std::type_index(typeid(T)) != slots_[it->second]->type)
       throw std::invalid_argument("Type mismatch on key");
     k.id = it->second;
