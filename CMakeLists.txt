@@ -22,6 +22,7 @@ if (RTBB_TSAN)
   target_link_options(tests PRIVATE -fsanitize=thread)
 endif()
 
+gtest_discover_tests(tests)
 target_include_directories(tests PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_compile_options(tests PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(tests PRIVATE GTest::gmock_main)
