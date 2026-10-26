@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
       if (m.seq >= kWarmup) latency[i].push_back(now_ns() - m.t_pub_ns);
       // simulate work with busy-wait
       if (a.work_us > 0) {
-        const int64 until = now_ns() + a.work_us * 1'000LL;
+        const int64_t until = now_ns() + a.work_us * 1'000LL;
         while (now_ns() < until) {
         }
       }
@@ -166,7 +166,8 @@ int main(int argc, char** argv) {
   pub.join();
 
   print_stats("wake_jitter", wake_jitter);
-  print_stats("latency", latency);
+  print_stats("latency first subscriber", latency[0]);
+  print_stats("latency last subscriber", latency[latency.size() - 1]);
 
   return 0;
 }
