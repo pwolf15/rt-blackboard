@@ -43,4 +43,34 @@ if (auto v = bb.get(k)) use(*v);      // snapshot; null before first set()
 
 ## Results (Radxa Q6A)
 
-TBD after 1 kHz benchmark
+Setup:
+* Release build
+* CPU governor `performance`
+* 1 Khz publisher, 1 subscriber, 60 s per run (first 100 samples dropped as warm-up).
+* Stock Ubuntu kernel, `PREEMPTY_DYNAMIC` in voluntary mode (not `PREEMPT_RT`). Times in µs.
+
+```bash
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+./build/bench --seconds 60
+sudo ./build/bench --seconds 60 --rt 6
+```
+
+`wake jitter` is how late the publisher wakes after its 1 ms deadline.
+`latency` is the time from `set()` to the subscriber callback.
+
+| Config | Wake jitter p50 / p99 / p99.9 / max | Latency p50 / p99 / p99.9 / max |
+|---|---|---|
+| default scheduler | 54.3 / 59.7 / 62.6 / 393.6 | 0.31 / 0.89 / 1.30 / 3.54 |
+| `--rt 6` (Cortex-A78, 2.4 GHz) | 4.2 / 5.0 / 8.0 / 20.6 | 0.31 / 0.78 / 0.83 / 3.28 |
+| `--rt 7` (Cortex-A78, 2.7 GHz) | 2.9 / 3.7 / 5.6 / 47.3 | 0.21 / 0.36 / 0.73 / 1.51 |
+| `--rt 2` (Cortex-A55, 2.0 GHz) | 8.4 / 10.1 / 13.3 / 72.7 | 0.83 / 1.25 / 1.41 / 2.45 |
+
+`--rt N` = `SCHED_FIFO` priority 80, pinned to CPU N, `mlockall`.
+
+Observations:
+* Without `--rt`, publisher wakes up ~54 µs late. Most of that is the kernels default 50 µs timer slack for normal threads. `SCHED_FIFO` removes it.
+* `--rt` doesn't change publish-to-callback latency. In v0 the callback runs on the publisher threads, so latency is determined by the lock, one allocation, and one function call. This depends on core speed, not scheduling.
+* CPU 7 is fater at the median but has a worse max than CPU 6 in these runs.
+* Switching the kernel to `preempt=full` did not change p50/p99. Max values vary between runs (21-49 µs on CPU 6), so single-run max should be read loosely.
+* The CPU governor mattered most for latency: under `schedutil` the same build measured 2.3 µs p50, because the core clocks down between 1 ms ticks.
+* Timer resolution on this board is ~52 ns (19.2 MHz counter).
