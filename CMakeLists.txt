@@ -12,6 +12,9 @@ add_library(rtbb::rtbb ALIAS rtbb)
 target_include_directories(rtbb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(rtbb INTERFACE cxx_std_20)
 
+add_executable(bench bench/latency_1khz.cpp)
+target_link_libraries(bench PRIVATE rtbb::rtbb)
+
 if (PROJECT_IS_TOP_LEVEL)
   include(FetchContent)
   set(INSTALL_GTEST OFF)
