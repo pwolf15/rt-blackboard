@@ -2,6 +2,10 @@
 
 C++20 header-only realtime blackboard, benchmarked on Radxa Q6A.
 
+## Background
+
+A blackboard is a shared, named store that components read and write instead of talking to each other directly (Nii, 1986). BehaviorTree.CPP uses the same idea for passing data between nodes. rtbb focuses on timing under real-time load.
+
 ## Building
 
 ``` bash
