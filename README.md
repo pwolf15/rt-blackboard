@@ -15,6 +15,8 @@ cmake --build ./build -j4
 cmake -B build-tsan -DRTBB_TSAN=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build-tsan -j4
 ctest --test-dir build-tsan --output-on-failure
+# bench
+./build/bench [--seconds N] [--subs N] [--rt CPU]
 ```
 
 ## Usage
@@ -39,15 +41,15 @@ if (auto v = bb.get(k)) use(*v);      // snapshot; null before first set()
 | --- | --- |
 | v0 | global mutex (current) |
 | v1 | SPSC subscriber queues; per-key seqlock slots (lock-free readers) |
-| v2 | no runtime allocation, `mlockall`, CPU pinning |
+| v2 | no allocation after startup in `set`/`get`; benchmark asserts zero page faults |
 
 ## Results (Radxa Q6A)
 
 Setup:
 * Release build
 * CPU governor `performance`
-* 1 Khz publisher, 1 subscriber, 60 s per run (first 100 samples dropped as warm-up).
-* Stock Ubuntu kernel, `PREEMPTY_DYNAMIC` in voluntary mode (not `PREEMPT_RT`). Times in µs.
+* 1 kHz publisher, 1 subscriber, 60 s per run (first 100 samples dropped as warm-up).
+* Stock Ubuntu kernel, `PREEMPT_DYNAMIC` in voluntary mode (not `PREEMPT_RT`). Times in µs.
 
 ```bash
 echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
@@ -68,9 +70,9 @@ sudo ./build/bench --seconds 60 --rt 6
 `--rt N` = `SCHED_FIFO` priority 80, pinned to CPU N, `mlockall`.
 
 Observations:
-* Without `--rt`, publisher wakes up ~54 µs late. Most of that is the kernels default 50 µs timer slack for normal threads. `SCHED_FIFO` removes it.
-* `--rt` doesn't change publish-to-callback latency. In v0 the callback runs on the publisher threads, so latency is determined by the lock, one allocation, and one function call. This depends on core speed, not scheduling.
-* CPU 7 is fater at the median but has a worse max than CPU 6 in these runs.
+* Without `--rt`, publisher wakes up ~54 µs late. Most of that is the kernel's default 50 µs timer slack for normal threads. `SCHED_FIFO` removes it.
+* `--rt` doesn't change publish-to-callback latency. In v0 the callback runs on the publisher thread, so latency is determined by the lock, one allocation, and one function call. This depends on core speed, not scheduling.
+* CPU 7 is faster at the median but has a worse max than CPU 6 in these runs.
 * Switching the kernel to `preempt=full` did not change p50/p99. Max values vary between runs (21-49 µs on CPU 6), so single-run max should be read loosely.
 * The CPU governor mattered most for latency: under `schedutil` the same build measured 2.3 µs p50, because the core clocks down between 1 ms ticks.
 * Timer resolution on this board is ~52 ns (19.2 MHz counter).

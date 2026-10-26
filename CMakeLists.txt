@@ -12,8 +12,6 @@ add_library(rtbb::rtbb ALIAS rtbb)
 target_include_directories(rtbb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(rtbb INTERFACE cxx_std_20)
 
-add_executable(bench bench/latency_1khz.cpp)
-target_link_libraries(bench PRIVATE rtbb::rtbb)
 
 if (PROJECT_IS_TOP_LEVEL)
   include(FetchContent)
@@ -30,10 +28,14 @@ if (PROJECT_IS_TOP_LEVEL)
   target_link_libraries(tests PRIVATE rtbb::rtbb GTest::gtest_main)
   gtest_discover_tests(tests)
 
+  add_executable(bench bench/latency_1khz.cpp)
+  target_link_libraries(bench PRIVATE rtbb::rtbb)
+
   if (RTBB_TSAN)
     target_compile_options(tests PRIVATE -fsanitize=thread)
     target_link_options(tests PRIVATE -fsanitize=thread)
   endif()
 
   target_compile_options(tests PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(bench PRIVATE -Wall -Wextra -Wpedantic)
 endif()
