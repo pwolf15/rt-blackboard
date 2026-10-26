@@ -5,6 +5,9 @@ project(rtbb CXX)
 option(RTBB_TSAN "Build with TSAN" ON)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_library(rtbb INTERFACE)
 
 include(FetchContent)
 set(INSTALL_GTEST OFF)
@@ -23,6 +26,6 @@ if (RTBB_TSAN)
 endif()
 
 gtest_discover_tests(tests)
-target_include_directories(tests PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(tests INTERFACE rtbb)
 target_compile_options(tests PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(tests PRIVATE GTest::gmock_main)
