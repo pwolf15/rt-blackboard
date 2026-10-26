@@ -76,5 +76,4 @@ Observations:
 * Switching the kernel to `preempt=full` did not change p50/p99. Max values vary between runs (21-49 µs on CPU 6), so single-run max should be read loosely.
 * The CPU governor mattered most for latency: under `schedutil` the same build measured 2.3 µs p50, because the core clocks down between 1 ms ticks.
 * Timer resolution on this board is ~52 ns (19.2 MHz counter).
-* In v0, a low susbcriber delays every subscriber after it and the publisher itself. Once total callback work exceeds the period, the publisher falls behind without bound. RT throttling adds 50ms stalls. v1 moves callbacks off publisher thread.
 * Overload (8 x 150 µs per 1 ms tick): the publisher falls behind 0.2 ms per tick. With the default RT throttling (`sched_rt_runtime_us=950000`) the 100%-busy `SCHED_FIFO` thread is paused ~50 ms per second (last-subscriber max 45.6 ms). With throttling disabled the max is 1.09 ms and the backlog after 9,900 ticks shrinks from 2.6s to 2.1 s.
