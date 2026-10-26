@@ -7,18 +7,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: clang-format --dry-run -Werror $(git ls-files '*.cpp' '*.h')
- 
+
   build:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-    matrix:
-      include:
-        - name: release
-          flags: -DCMAKE_BUILD_TYPE=Release
-        - name: tsan
-          flags: -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRTBB_TSAN=ON
-    name: build (${{ matrix.name }}) 
+      matrix:
+        include:
+          - name: release
+            flags: -DCMAKE_BUILD_TYPE=Release
+          - name: tsan
+            flags: -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRTBB_TSAN=ON
+    name: build (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
       - if: matrix.name == 'tsan'
