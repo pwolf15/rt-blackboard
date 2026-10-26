@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(rtbb CXX)
 
-option(RTBB_TSAN "Build with TSAN" ON)
+option(RTBB_TSAN "Build with TSAN" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,6 +15,7 @@ target_compile_features(rtbb INTERFACE cxx_std_20)
 include(FetchContent)
 set(INSTALL_GTEST OFF)
 FetchContent_Declare(googletest
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
 FetchContent_MakeAvailable(googletest)
 

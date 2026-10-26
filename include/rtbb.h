@@ -40,7 +40,7 @@ class Blackboard {
     std::string sname(name);
 
     std::lock_guard<std::mutex> guard(slots_mutex_);
-    auto [it, inserted] = index_.try_empalce(sname, slots_.size());
+    auto [it, inserted] = index_.try_emplace(sname, slots_.size());
     if (inserted) slots_.push_back(std::make_unique<Slot>(std::type_index(typeid(T)), sname));
     if (std::type_index(typeid(T)) != slots_[it->second]->type)
       throw std::invalid_argument("Type mismatch on key");
