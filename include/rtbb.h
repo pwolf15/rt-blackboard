@@ -1,12 +1,21 @@
 #pragma once
 
+#include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <functional>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
 #include <vector>
 
+namespace rtbb {
 template <class T>
 struct Key {
   std::size_t id;
@@ -28,19 +37,22 @@ class Blackboard {
   template <class T>
   Key<T> key(std::string_view name) {
     Key<T> k;
-    std::lock_guard<std::mutex> slots_guard(slots_mutex_);
-    std::lock_guard<std::mutex> index_guard(index_mutex_);
+    std::string sname(name);
 
+    std::lock_guard<std::mutex> guard(slots_mutex_);
+    auto it = index_.find(sname);
     // if key not found in index_, add to index_ and create new slot
-    if (index_.find(std::string(name)) == index_.end()) {
-      index_[std::string(name)] = slots_.size();
-      slots_.push_back(std::make_unique<Slot>(std::type_index(typeid(T)), std::string(name)));
+    if (it == index_.end()) {
+      index_[sname] = slots_.size();
+      slots_.push_back(std::make_unique<Slot>(std::type_index(typeid(T)), sname));
+      it = index_.find(sname);
     }
-    k.id = index_[std::string(name)];
+    if (std::type_index(typeid(T)) != slots_[it->second]->type)
+      throw std::invalid_argument("Type mismatch on key");
+    k.id = it->second;
     return k;
   }
 
-  // return value or empty, if not found
   template <class T>
   void set(Key<T> k, T value) {
     auto ptr = std::make_shared<const T>(std::move(value));
@@ -56,12 +68,13 @@ class Blackboard {
       subs = s.subs;  // snapshot the subscriber list
     }
 
-    for (const auto& cb : slots_[k.id]->subs) cb(ptr.get());
+    for (const auto& cb : subs) cb(ptr.get());
   }
 
   template <class T>
   std::shared_ptr<const T> get(Key<T> k) const {
-    if (k.id < 0 || k.id >= slots_.size()) return nullptr;
+    std::lock_guard<std::mutex> guard(slots_mutex_);
+    assert(k.id < slots_.size());
     return std::static_pointer_cast<const T>(slots_[k.id]->value);
   }
 
@@ -74,8 +87,8 @@ class Blackboard {
   }
 
   private:
-  std::mutex slots_mutex_;
-  std::mutex index_mutex_;
+  mutable std::mutex slots_mutex_;
   std::unordered_map<std::string, std::size_t> index_;
   std::vector<std::unique_ptr<Slot>> slots_;
 };
+}  // namespace rtbb

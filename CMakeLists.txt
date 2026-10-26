@@ -22,7 +22,7 @@ enable_testing()
 include(GoogleTest)
 
 add_executable(tests src/tests.cpp)
-target_link_libraries(tests PRIVATE rtbb::rtbb GTest::gmock_main)
+target_link_libraries(tests PRIVATE rtbb::rtbb GTest::gtest_main)
 gtest_discover_tests(tests)
 
 if (RTBB_TSAN)
