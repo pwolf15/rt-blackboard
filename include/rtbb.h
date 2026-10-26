@@ -76,7 +76,7 @@ class Blackboard {
   template <class T>
   void subscribe(Key<T> k, std::type_identity_t<std::function<void(const T&)>> cb) {
     std::lock_guard<std::mutex> guard(slots_mutex_);
-    if (k.id < 0 || k.id >= slots_.size()) return;
+    assert(k.id < slots_.size());
     slots_[k.id]->subs.push_back(
         [cb = std::move(cb)](const void* p) { cb(*static_cast<const T*>(p)); });
   }
