@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
     print_stats("latency first subscriber", latency[0]);
     print_stats("latency last subscriber", latency[latency.size() - 1]);
   }
-  print_stats("latency set()", set_time);
+  print_stats("set() duration", set_time);
 
   return 0;
 }

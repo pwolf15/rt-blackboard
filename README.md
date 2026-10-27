@@ -73,6 +73,16 @@ sudo ./build/bench --seconds 60 --rt 6
 
 ### Callback work
 
+* `--work-us N` busy-waits N µs inside each subscriber callback.
+* `--rt 6` unless notes; times in µs.
+* Disabling RT throttling: `echo -1 | sudo tee /proc/sys/kernel/sched_rt_runtime_us`
+
+| Config | Wake jitter p50 / p99.9 / max | First sub p50 / max | Last sub p50 / p99.9 / max |
+|---|---|---|---|
+| 5 subs, 0 µs (no `--rt`, 5 s) | 54.4 / 58.8 / 64.2 | 0.47 / 3.59 | 0.78 / 5.47 / 7.50 |
+| 5 subs × 50 µs (60 s) | 4.2 / 6.6 / 42.6 | 0.47 / 3.28 | 201.4 / 202.4 / 257.8 |
+| 8 subs × 150 µs, overload (10 s) | 1.28 s / 2.62 s / 2.62 s | 0.73 / 9.84 | 1052 / 1060 / 45 619 |
+| same, RT throttling off | 1.06 s / 2.09 s / 2.09 s | 0.73 / 4.43 | 1052 / 1056 / 1088 |
 
 ### Reader contention
 
@@ -84,7 +94,7 @@ sudo ./build/bench --seconds 60 --rt 6 --readers 0
 sudo ./build/bench --seconds 60 --rt 6 --readers 4
 ```
 
-| Reader | set() p50 / p99 / p99.9 / max | Latency p50 / p99 / p99.9 / max |
+| Readers | set() p50 / p99 / p99.9 / max | Latency p50 / p99 / p99.9 / max |
 | --- | --- | --- |
 | 0 | 0.52 / 0.68 / 1.15 / 3.39 | 0.31 / 0.42 / 0.83 / 2.97 |
 | 4 (6.2 M reads/s) | 2.03 / 11.7 / 17.6 / 560 | 1.77 / 11.4 / 17.4 / 560 |
@@ -99,3 +109,4 @@ Observations:
 * Overload (8 x 150 µs per 1 ms tick): the publisher falls behind 0.2 ms per tick. With the default RT throttling (`sched_rt_runtime_us=950000`) the 100%-busy `SCHED_FIFO` thread is paused ~50 ms per second (last-subscriber max 45.6 ms). With throttling disabled the max is 1.09 ms and the backlog after 9,900 ticks shrinks from 2.6s to 2.1 s.
 * With 5 subscribers x 50 µs, the last subscriber waits 201 µs (4 x 50 µs) because v0 runs callbacks one after another on publisher thread; first stays at 0.5 µs.
 * Readers slow down the writer: with 4 threads calling `get()`, `set()` gets 4x slower at p50, ~16x at p99/p99.9, and the max rises from 3.4 to 560 µs. The max reproduced in two runs (540, 560 µs), consistent with priority inversion. A normal-priority reader preempted while holding the mutex blocks the `SCHED_FIFO` publisher. v1's seqlock removes the lock from `get()`.
+* Padding per-reader counters to separate cache lines made no measurable difference. Mutex is the bottleneck.
