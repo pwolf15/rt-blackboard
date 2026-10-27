@@ -57,8 +57,10 @@ echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governo
 sudo ./build/bench --seconds 60 --rt 6
 ```
 
-`wake jitter` is how late the publisher wakes after its 1 ms deadline.
-`latency` is the time from `set()` to the subscriber callback.
+### Scheduling and core
+
+* `wake jitter`: how late the publisher wakes after its 1 ms deadline.
+* `latency`: time from `set()` to the subscriber callback.
 
 | Config | Wake jitter p50 / p99 / p99.9 / max | Latency p50 / p99 / p99.9 / max |
 |---|---|---|
@@ -69,6 +71,24 @@ sudo ./build/bench --seconds 60 --rt 6
 
 `--rt N` = `SCHED_FIFO` priority 80, pinned to CPU N, `mlockall`.
 
+### Callback work
+
+
+### Reader contention
+
+* Readers (`--rt 6`, `performance` governor config, 60 s, 1 subscriber)
+
+``` bash
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+sudo ./build/bench --seconds 60 --rt 6 --readers 0
+sudo ./build/bench --seconds 60 --rt 6 --readers 4
+```
+
+| Reader | set() p50 / p99 / p99.9 / max | Latency p50 / p99 / p99.9 / max |
+| --- | --- | --- |
+| 0 | 0.52 / 0.68 / 1.15 / 3.39 | 0.31 / 0.42 / 0.83 / 2.97 |
+| 4 (6.2 M reads/s) | 2.03 / 11.7 / 17.6 / 560 | 1.77 / 11.4 / 17.4 / 560 |
+
 Observations:
 * Without `--rt`, publisher wakes up ~54 µs late. Most of that is the kernel's default 50 µs timer slack for normal threads. `SCHED_FIFO` removes it.
 * `--rt` doesn't change publish-to-callback latency. In v0 the callback runs on the publisher thread, so latency is determined by the lock, one allocation, and one function call. This depends on core speed, not scheduling.
@@ -78,3 +98,4 @@ Observations:
 * Timer resolution on this board is ~52 ns (19.2 MHz counter).
 * Overload (8 x 150 µs per 1 ms tick): the publisher falls behind 0.2 ms per tick. With the default RT throttling (`sched_rt_runtime_us=950000`) the 100%-busy `SCHED_FIFO` thread is paused ~50 ms per second (last-subscriber max 45.6 ms). With throttling disabled the max is 1.09 ms and the backlog after 9,900 ticks shrinks from 2.6s to 2.1 s.
 * With 5 subscribers x 50 µs, the last subscriber waits 201 µs (4 x 50 µs) because v0 runs callbacks one after another on publisher thread; first stays at 0.5 µs.
+* Readers slow down the writer: with 4 threads calling `get()`, `set()` gets 4x slower at p50, ~16x at p99/p99.9, and the max rises from 3.4 to 560 µs. The max reproduced in two runs (540, 560 µs), consistent with priority inversion. A normal-priority reader preempted while holding the mutex blocks the `SCHED_FIFO` publisher. v1's seqlock removes the lock from `get()`.

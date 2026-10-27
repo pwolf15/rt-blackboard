@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -105,7 +106,9 @@ int main(int argc, char** argv) {
   int seconds = a.seconds;
   uint64_t seq = 0;
   std::vector<int64_t> wake_jitter;
+  std::vector<int64_t> set_time;
   wake_jitter.reserve(seconds * 1000);
+  set_time.reserve(seconds * 1000);
 
   constexpr uint64_t kWarmup = 100;
 
@@ -135,11 +138,15 @@ int main(int argc, char** argv) {
     while (to_ns(deadline) < end) {
       while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, nullptr) == EINTR) {
       }
+      const uint64_t s = seq++;
       const int64_t now = now_ns();
 
-      if (seq >= kWarmup) wake_jitter.push_back(now - to_ns(deadline));
+      if (s >= kWarmup) wake_jitter.push_back(now - to_ns(deadline));
 
-      bb.set(k, TestMessage{seq++, now_ns(), {}});
+      const int64_t set_start = now_ns();
+      bb.set(k, TestMessage{s, now_ns(), {}});
+      const int64_t set_end = now_ns();
+      if (s >= kWarmup) set_time.push_back(set_end - set_start);
 
       deadline.tv_nsec += 1'000'000;  // sleep 1 ms
       if (deadline.tv_nsec >= 1'000'000'000) {
@@ -162,12 +169,42 @@ int main(int argc, char** argv) {
       }
     });
   }
+
+  // reader setup
+  std::atomic<bool> stop{false};
+  std::vector<std::thread> readers;
+  struct alignas(64) Counter {
+    uint64_t n = 0;
+  };
+  std::vector<Counter> reads(a.readers);
+  auto read = [&](int i) {
+    while (!stop.load(std::memory_order_relaxed)) {
+      auto p = bb.get(k);
+      ++reads[i].n;
+    }
+  };
+  for (int i = 0; i < a.readers; ++i) {
+    readers.push_back(std::thread(read, i));
+  }
   std::thread pub(publish);
   pub.join();
-
+  stop = true;
+  for (auto& reader : readers) {
+    reader.join();
+  }
   print_stats("wake_jitter", wake_jitter);
-  print_stats("latency first subscriber", latency[0]);
-  print_stats("latency last subscriber", latency[latency.size() - 1]);
+  if (a.readers > 0) {
+    uint64_t total_reads = 0;
+    for (auto read : reads) {
+      total_reads += read.n;
+    }
+    std::cout << "total reads per second: " << total_reads / (double)seconds << "\n";
+  }
+  if (a.subs > 0) {
+    print_stats("latency first subscriber", latency[0]);
+    print_stats("latency last subscriber", latency[latency.size() - 1]);
+  }
+  print_stats("latency set()", set_time);
 
   return 0;
 }
