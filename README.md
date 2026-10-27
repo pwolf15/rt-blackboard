@@ -74,7 +74,7 @@ sudo ./build/bench --seconds 60 --rt 6
 ### Callback work
 
 * `--work-us N` busy-waits N µs inside each subscriber callback.
-* `--rt 6` unless notes; times in µs.
+* `--rt 6` unless noted; times in µs.
 * Disabling RT throttling: `echo -1 | sudo tee /proc/sys/kernel/sched_rt_runtime_us`
 
 | Config | Wake jitter p50 / p99.9 / max | First sub p50 / max | Last sub p50 / p99.9 / max |
