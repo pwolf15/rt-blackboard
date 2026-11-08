@@ -6,8 +6,14 @@
 #include <cstring>
 #include <type_traits>
 
-#if defined(__SANITIZE_THREAD__) || (defined(__has_feature) && __has_feature(thread_sanitizer))
+#if defined(__SANITIZE_THREAD__)
 #define RTBB_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define RTBB_TSAN 1
+#else
+#define RTBB_TSAN 0
+#endif
 #else
 #define RTBB_TSAN 0
 #endif
@@ -65,18 +71,14 @@ class SeqSlot {
   std::atomic<uint64_t> seq_;
 
   // tsan helpers
-  static void tsan_release(void* p) {
+  static void tsan_release([[maybe_unused]] void* p) {
 #if RTBB_TSAN
     __tsan_release(p);
-#else
-    [[maybe_unused]] p;
 #endif
   }
-  static void tsan_acquire(void* p) {
+  static void tsan_acquire([[maybe_unused]] void* p) {
 #if RTBB_TSAN
     __tsan_acquire(p);
-#else
-    [[maybe_unused]] p;
 #endif
   }
 };

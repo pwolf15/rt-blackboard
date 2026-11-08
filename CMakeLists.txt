@@ -34,7 +34,7 @@ if (PROJECT_IS_TOP_LEVEL)
 
   if (RTBB_TSAN)
     target_compile_options(tests PRIVATE -fsanitize=thread -Wno-tsan)
-    target_link_options(tests PRIVATE -fsanitize=thread -Wno-tsan)
+    target_link_options(tests PRIVATE -fsanitize=thread)
   endif()
 
   target_compile_options(tests PRIVATE -Wall -Wextra -Wpedantic)
