@@ -100,7 +100,7 @@ TEST(Blackboard, SeqlockRoundTrip) {
 
 TEST(Blackboard, SeqlockTornReads) {
   struct TestStruct {
-    uint64_t payload[8];  // 64-byte struct
+    std::uint64_t payload[8];  // 64-byte struct
   };
   rtbb::SeqSlot<TestStruct> seq_slot;
   int64_t counter = 0;
@@ -119,8 +119,8 @@ TEST(Blackboard, SeqlockTornReads) {
   };
 
   int num_readers = 4;
-  std::atomic<uint64_t> violations = 0;
-  std::atomic<uint64_t> reads = 0;
+  std::atomic<std::uint64_t> violations = 0;
+  std::atomic<std::uint64_t> reads = 0;
   auto read = [&](std::stop_token stop_token) {
     TestStruct ts;
     while (!stop_token.stop_requested()) {

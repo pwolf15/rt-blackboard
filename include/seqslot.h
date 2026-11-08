@@ -32,7 +32,7 @@ class SeqSlot {
     std::array<std::uint64_t, kWords> payload = {};
     std::memcpy(payload.data(), &v, sizeof(T));
 
-    uint64_t s = seq_.load(std::memory_order_relaxed);
+    std::uint64_t s = seq_.load(std::memory_order_relaxed);
     seq_.store(s + 1, std::memory_order_relaxed);
     std::atomic_thread_fence(std::memory_order_release);
     tsan_release(&seq_);
@@ -42,7 +42,7 @@ class SeqSlot {
     seq_.store(s + 2, std::memory_order_release);
   }
   bool try_read(T& v) const {
-    uint64_t seq0 = seq_.load(std::memory_order_acquire);
+    std::uint64_t seq0 = seq_.load(std::memory_order_acquire);
     if (!seq0) return false;
     if (seq0 & 1) return false;
 
@@ -52,7 +52,7 @@ class SeqSlot {
     }
     std::atomic_thread_fence(std::memory_order_acquire);
     tsan_acquire(const_cast<void*>(static_cast<const void*>(&seq_)));
-    uint64_t seq1 = seq_.load(std::memory_order_relaxed);
+    std::uint64_t seq1 = seq_.load(std::memory_order_relaxed);
     bool torn_read = seq0 != seq1;
     if (!torn_read) std::memcpy(&v, payload_arr.data(), sizeof(T));
     return !torn_read;
@@ -63,12 +63,12 @@ class SeqSlot {
     } while (!try_read(out));
     return out;
   }
-  uint64_t seq() const { return seq_.load(std::memory_order_relaxed); }
+  std::uint64_t seq() const { return seq_.load(std::memory_order_relaxed); }
 
   private:
   static constexpr std::size_t kWords = (sizeof(T) + 7) / 8;
   std::array<std::atomic<std::uint64_t>, kWords> payload_;
-  std::atomic<uint64_t> seq_;
+  std::atomic<std::uint64_t> seq_;
 
   // tsan helpers
   static void tsan_release([[maybe_unused]] void* p) {
