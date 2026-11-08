@@ -36,7 +36,7 @@ class SeqSlot {
     seq_.store(s + 1, std::memory_order_relaxed);
     std::atomic_thread_fence(std::memory_order_release);
     tsan_release(&seq_);
-    for (size_t i = 0; i < kWords; ++i) {
+    for (std::size_t i = 0; i < kWords; ++i) {
       payload_[i].store(payload[i], std::memory_order_relaxed);
     }
     seq_.store(s + 2, std::memory_order_release);
@@ -47,7 +47,7 @@ class SeqSlot {
     if (seq0 & 1) return false;
 
     std::array<std::uint64_t, kWords> payload_arr = {};
-    for (size_t i = 0; i < kWords; ++i) {
+    for (std::size_t i = 0; i < kWords; ++i) {
       payload_arr[i] = payload_[i].load(std::memory_order_relaxed);
     }
     std::atomic_thread_fence(std::memory_order_acquire);
@@ -67,8 +67,8 @@ class SeqSlot {
 
   private:
   static constexpr std::size_t kWords = (sizeof(T) + 7) / 8;
-  std::array<std::atomic<std::uint64_t>, kWords> payload_;
-  std::atomic<std::uint64_t> seq_;
+  std::array<std::atomic<std::uint64_t>, kWords> payload_{};
+  std::atomic<std::uint64_t> seq_{};
 
   // tsan helpers
   static void tsan_release([[maybe_unused]] void* p) {
