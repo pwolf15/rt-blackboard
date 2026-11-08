@@ -3,8 +3,10 @@
 #include <atomic>
 #include <latch>
 #include <thread>
+#include <vector>
 
 #include "rtbb.h"
+#include "seqslot.h"
 
 TEST(Blackboard, Basic) {
   // set, then get returns same value
@@ -85,4 +87,59 @@ TEST(Blackboard, ConcurrentTest) {
   sub0.join();
   sub1.join();
   EXPECT_GT(calls.load(), 0);
+}
+
+TEST(Blackboard, SeqlockRoundTrip) {
+  struct Position {
+    float x, y, z;
+  };
+  rtbb::SeqSlot<Position> seq_slot;
+  Position p;
+  EXPECT_FALSE(seq_slot.try_read(p));
+}
+
+TEST(Blackboard, SeqlockTornReads) {
+  struct TestStruct {
+    uint64_t payload[8];  // 64-byte struct
+  };
+  rtbb::SeqSlot<TestStruct> seq_slot;
+  int64_t counter = 0;
+  auto write = [&](std::stop_token stop_token) {
+    while (!stop_token.stop_requested()) {
+      TestStruct ws;
+      if (counter % 2 == 0) {
+        for (int i = 0; i < 8; ++i) ws.payload[i] = 0xAA;
+      } else {
+        for (int i = 0; i < 8; ++i) ws.payload[i] = 0x55;
+      }
+
+      seq_slot.write(ws);
+      counter++;
+    }
+  };
+
+  int num_readers = 4;
+  std::atomic<uint64_t> violations = 0;
+  std::atomic<uint64_t> reads = 0;
+  auto read = [&](std::stop_token stop_token) {
+    TestStruct ts;
+    while (!stop_token.stop_requested()) {
+      ts = seq_slot.read();
+      for (int i = 0; i < 7; ++i) {
+        if (ts.payload[i] != ts.payload[i + 1]) violations++;
+        if (!(ts.payload[i] == 0xAA || ts.payload[i] == 0x55)) violations++;
+      }
+      reads++;
+    }
+  };
+  {
+    std::jthread w0(write);
+    std::vector<std::jthread> readers;
+    for (int i = 0; i < num_readers; ++i) {
+      readers.push_back(std::jthread(read));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
+  EXPECT_EQ(violations, 0);
+  EXPECT_GT(reads, 0);
 }
