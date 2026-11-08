@@ -35,6 +35,20 @@ bb.set(k, 42.f);                      // prints "bearing 42.0"
 if (auto v = bb.get(k)) use(*v);      // snapshot; null before first set()
 ```
 
+## Design
+
+### v0: global mutex
+
+One mutex over all slots; `get()` returns a `shared_ptr` snapshot, `set()` stores the provided value in the slot and checks its type.
+
+### v1: seqlock slots: (trivially copyable values)
+
+`SeqSlot<T>` implements seqlock semantics as described in Hans Boehm's *[Can Seqlocks Get Along with Programming Language Memory Models?](https://dl.acm.org/doi/pdf/10.1145/2247684.2247688)*. Instead of a mutex, an atomic sequence counter guards in-progress writes: the writer increments it to odd before writing and to even after. A reader copies the value, then checks that the counter is even and unchanged, otherwise it retries. Readers never block the writer which achieves the desired behavior: a single producer writes the latest value, which multiple consumers read. The payload is stored as an array of atomic 64-bit words and moved with `memcpy`, so the reader's optimistic copy is race-free under the C++ memory model even while the writer is storing. `T` must be trivially copyable so it can be copied as bytes. Thread Sanitizer does not model `atomic_thread_fence`, so under TSAN the slot adds `__tsan_release`/`__tsan_acquire` annotations next to the fences.
+
+### v1: SPSC subscriber queues
+
+Planned: one bounded single-producer, single-consumer queue per subscriber, so `set()` returns without running callbacks on writer's thread.
+
 ## Roadmap
 
 | Version | Features |

@@ -6,6 +6,7 @@ option(RTBB_TSAN "Build with TSAN" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(rtbb INTERFACE)
 add_library(rtbb::rtbb ALIAS rtbb)
@@ -32,7 +33,7 @@ if (PROJECT_IS_TOP_LEVEL)
   target_link_libraries(bench PRIVATE rtbb::rtbb)
 
   if (RTBB_TSAN)
-    target_compile_options(tests PRIVATE -fsanitize=thread)
+    target_compile_options(tests PRIVATE -fsanitize=thread -Wno-tsan)
     target_link_options(tests PRIVATE -fsanitize=thread)
   endif()
 
